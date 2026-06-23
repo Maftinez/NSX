@@ -54,7 +54,9 @@ def map_existing_services(target_nsx:NSX_API):
 
 def main():
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    
+
+    retry_count = 0
+    max_retry_count = 50
     
     print("---------------------------------------")
     print("------ NSX SERVICE MIGRATION TOOL -----")
@@ -75,9 +77,11 @@ def main():
     existing_services_map = map_existing_services(destination_nsx)
     
     arr_services_to_revisit = create_services(arr_services_to_create=arr_services_to_migrate, target_nsx=destination_nsx, target_nsx_existing_services_map=existing_services_map)
-    
-    while len(arr_services_to_revisit) > 0:
+
+    # Note, Incase of a failure to create the services, code will retry 50 times before timing out - to prevent infinite loop.
+    while len(arr_services_to_revisit) > 0 && (retry_count < max_retry_count):
         arr_services_to_revisit = create_services(arr_services_to_create=arr_services_to_revisit, target_nsx=destination_nsx, target_nsx_existing_services_map=existing_services_map)
+        retry_count += 1
 
 if __name__ == "__main__":
     main()

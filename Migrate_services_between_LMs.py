@@ -79,8 +79,15 @@ def main():
     arr_services_to_revisit = create_services(arr_services_to_create=arr_services_to_migrate, target_nsx=destination_nsx, target_nsx_existing_services_map=existing_services_map)
 
     # Note, Incase of a failure to create the services, code will retry 50 times before timing out - to prevent infinite loop.
-    while len(arr_services_to_revisit) > 0 && (retry_count < max_retry_count):
+    while len(arr_services_to_revisit) > 0 and (retry_count < max_retry_count):
+        previous_count = len(arr_services_to_revisit)
         arr_services_to_revisit = create_services(arr_services_to_create=arr_services_to_revisit, target_nsx=destination_nsx, target_nsx_existing_services_map=existing_services_map)
+
+        # If no new services were successfully created this round - terminate
+        if len(arr_services_to_revisit) == previous_count:
+            print(f"Migration stuck due to unresolved dependencies or errors. Stopping.")
+            break
+        
         retry_count += 1
 
 if __name__ == "__main__":

@@ -220,6 +220,33 @@ def main():
 if __name__ == "__main__":
     main()
 
+    
+    def create_service_from_dict(self, service_data:dict):
+        service_id = service_data["id"]
+        url = self.base_url + "/policy/api/v1/infra/services/" + service_id
+        
+        payload = service_data
+        
+        try:
+            print(f"PATCH {url}")
+            pprint(payload)
+            response = requests.patch(url=url, auth=self.cred, json=payload, verify=False)
+            
+            if response.status_code == 200:
+                print(f"Successfully created service {service_id}")
+                return
+                
+            try:
+                err = response.json().get("error_message", response.text)
+            except ValueError:  # not JSON
+                err = response.text
+            raise requests.exceptions.HTTPError(
+                f"{response.status_code} - {err}", response=response
+            )
+        except requests.exceptions.HTTPError as error_http:
+            print(f"ERROR! unable to create service, Code: {response.status_code} Message {str(error_http)}")
+            raise "ERROR! unable to create service"
+            
 
 
 

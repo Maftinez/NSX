@@ -2,6 +2,7 @@ import requests
 import urllib3
 import json
 import logging
+from pprint import pprint
 
 # Disable SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

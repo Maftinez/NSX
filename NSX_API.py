@@ -14,8 +14,110 @@ class NSX_API:
         self.cred = (self.username, self.password)
         self.base_url = "https://" + manager_fqdn
 
-    def __execute_search_request(self,
+    def __execute_search_request(self, url):
+        print(f"Search requested URL: {url}")
+        try:
+            response = requests.get(url=url, verify=False, auth=self.cred)
 
+            if response.status_code == 200:
+                response_json = response.json()
+                return response_json
+            else:
+                response.raise_for_status()
+                logging.error(response)
+        except requests.exceptions.HTTPError as error_http:
+            print(f"ERROR! search query failed, Code: {response.status_code} Message {str(error_http)}")
+            raise "ERROR! search query failed"
+
+    def search_query(self, queries:list):
+        url = self.base_url + "/policy/api/v1/search/query?query="
+        and_string = " AND "
+
+        queries_string = and_string.join(queries)
+        queries_string = queries_string.replace(' ', '%20')
+        queries_string = queries_string.replace('"', '%22')
+        queries_string = queries_string.replace('\/', '%5C')
+
+        url += queries_string
+
+        response_json = self.__execute_search_request(url=url)
+        results = response_json["results"]
+
+        while "cursor" in response_json.keys():
+            url_with_cursor = url + "&cursor=" + response_json["cursor"]
+            response_json = self.__execute_search_request(url=url_with_cursor)
+            response_results = response_json["results"]
+            if len(response_results) > 0:
+                results = results + response_results
+
+        return results
+
+    def get_resource_by_type_and_queries(self, resource_type:str, queries:list):
+        new_queries = ["resource_type:" + resource_type]
+        new_queries += queries
+
+        return self.search_query(queries=new_queries)
+
+    def get_resource_by_type_and_name(self, resource_type:str, resource_name:str):
+        return self.get_resource_by_type_and_queries(resource_type=resource_type, queries=['display_name:"' + resource_name + '"'])
+
+    def get_resource_by_type_and_path(self, resource_type:str, resource_path:str):
+        return self.get_resource_by_type_and_queries(resource_type=resource_type, queries=['path:"' + resource_path + '"'])
+
+    def get_resource_by_type_and_id(self, resource_type:str, resource_id:str):
+        return self.get_resource_by_type_and_queries(resource_type=resource_type, queries=['id:"' + resource_id + '"'])
+
+    #def get_all_tags(self):...
+
+    #def get_tag_effective_resources(self, tag_name:str):...
+
+    #def get_discovered_vm_info(self, vm_name:str):...
+
+    def save_mapping_to_file(self, mapping:dict, file_path:str):
+        with open(file_path, "w") as file:
+            json.dump(mapping, file, indent=2)
+
+    def read_mapping_from_file(self, file_path:str):
+        with open(file_path, "r") as f:
+            return json.loads(f.read())
+
+    #def add_tags_to_vm(self, vm_external_id:str, tags:list):...
+
+    #def _get_site_from_path(self, path:str):...
+
+    #def create_gfw_rulebase_mapping(self):...
+
+    def get_local_groups(self):
+        return self.get_resource_by_type_and_queries(resource_type="group", queries=['parent_path:"/infra/domains/default"'])
+
+    def get_group_by_path(self, path:str):
+        return self.get_resource_by_type_and_queries(resource_type="group", queries=['path:"' + path + '"'])
+
+    def create_group_from_dict(self, group_data:dict):
+        group_id = group_data["id"]
+        url = self.base_url + "/policy/api/v1/infra/domains/default/groups/" + group_id
+
+        payload = group_data
+
+        try:
+            print(f"PATCH {url}")
+            pprint(payload)
+            response = requests.patch(url=url, auth=self.cred, json=payload, verify=False)
+
+            if response.status_code == 200:
+                print(f"Successfully created group {group_id}")
+                return
+
+            try:
+                err = response.json().get("error_message", response.text)
+            except ValueError:  # not JSON
+                err = response.text
+            raise requests.exceptions.HTTPError(
+                f"{response.status_code} - {err}", response=response
+            )
+        except requests.exceptions.HTTPError as error_http:
+            print(f"ERROR! unable to create group, Code: {response.status_code} Message {str(error_http)}")
+            raise "ERROR! unable to create group"
   
     def get_virtual_machines(self):
         results = []
@@ -76,14 +178,6 @@ class NSX_API:
         print(f"A total of {len(mapping.keys())} VMs were mapped.\nNumber of VMs without tag: {vms_without_tag_counter}")
         return mapping
 
-    def save_mapping_to_file(self, mapping: dict, file_path: str):
-        with open(file_path, "w") as file:
-            json.dump(mapping, file, indent=2)
-
-    def read_mapping_from_file(self, file_path: str):
-        with open(file_path, "r") as f:
-            return json.loads(f.read())
-
     def add_tags_to_vm(self, vm_external_id: str, tags: list):
         url = self.base_url + "/policy/api/v1/fabric/virtual-machines?action=add_tags"
         
@@ -122,33 +216,6 @@ class NSX_API:
 
 def main():
     print("------------------------------------")
-    print("-----    PLEASE CHOOSE ACTION  -----")
-    print("------------------------------------")
-    print("1) Create Tags mapping from source NSX")
-    print("2) Replenish VMs tags using a mapping to destination NSX")
-    print("------------------------------------")
-    
-    chosen_action_num = input('Action Number: ')
-    
-    if chosen_action_num == "1":
-        source_nsx_fqdn = input('NSX Fqdn: ')
-        source_nsx_username = input('Username: ')
-        source_nsx_password = input('Password: ')
-        file_path = input('File Path: ')
-        
-        source_nsx = NSX_API(manager_fqdn=source_nsx_fqdn, username=source_nsx_username, password=source_nsx_password)
-        source_mapping = source_nsx.map_vm_names_to_tags()
-        source_nsx.save_mapping_to_file(mapping=source_mapping, file_path=file_path)
-        
-    elif chosen_action_num == "2":
-        destination_nsx_fqdn = input('NSX Fqdn: ')
-        destination_nsx_username = input('Username: ')
-        destination_nsx_password = input('Password: ')
-        file_path = input('Source mapping file path: ')
-        
-        destination_nsx = NSX_API(manager_fqdn=destination_nsx_fqdn, username=destination_nsx_username, password=destination_nsx_password)
-        source_mapping = destination_nsx.read_mapping_from_file(file_path=file_path)
-        destination_nsx.replenish_tags_from_mapping(original_mapping=source_mapping)
 
 if __name__ == "__main__":
     main()
@@ -162,128 +229,4 @@ if __name__ == "__main__":
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def __execute_search_request(self, url):
-        print(f"Search requested URL: {url}")
-        try:
-            response = requests.get(url=url, verify=False, auth=self.cred)
-
-            if response.status_code == 200:
-                response_json = response.json()
-                return response_json
-            else:
-                response.raise_for_status()
-                logging.error(response)
-        except requests.exceptions.HTTPError as error_http:
-            print(f"ERROR! search query failed, Code: {response.status_code} Message {str(error_http)}")
-            raise "ERROR! search query failed"
-
-    def search_query(self, queries:list):
-        url = self.base_url + "/policy/api/v1/search/query?query="
-        and_string = " AND "
-
-        queries_string = and_string.join(queries)
-        queries_string = queries_string.replace(' ', '%20')
-        queries_string = queries_string.replace('"', '%22')
-        queries_string = queries_string.replace('\\/', '%5C')
-
-        url += queries_string
-
-        response_json = self.__execute_search_request(url=url)
-        results = response_json["results"]
-
-        while "cursor" in response_json.keys():
-            url_with_cursor = url + "&cursor=" + response_json["cursor"]
-            response_json = self.__execute_search_request(url=url_with_cursor)
-            response_results = response_json["results"]
-            if len(response_results) > 0:
-                results = results + response_results
-
-        return results
-
-    def get_resource_by_type_and_queries(self, resource_type:str, queries:list):
-        new_queries = ["resource_type:" + resource_type]
-        new_queries += queries
-
-        return self.search_query(queries=new_queries)
-
-    def get_resource_by_type_and_name(self, resource_type:str, resource_name:str):
-        return self.get_resource_by_type_and_queries(resource_type=resource_type, queries=['display_name:"' + resource_name + '"'])
-
-    def get_resource_by_type_and_path(self, resource_type:str, resource_path:str):
-        return self.get_resource_by_type_and_queries(resource_type=resource_type, queries=['path:"' + resource_path + '"'])
-
-    def get_resource_by_type_and_id(self, resource_type:str, resource_id:str):
-        return self.get_resource_by_type_and_queries(resource_type=resource_type, queries=['id:"' + resource_id + '"'])
-
-    def get_all_tags(self):...
-
-    def get_tag_effective_resources(self, tag_name:str):...
-
-    def get_discovered_vm_info(self, vm_name:str):...
-
-    def get_virtual_machines(self):...
-
-    def map_vm_names_to_tags(self):...
-
-    def save_mapping_to_file(self, mapping:dict, file_path:str):
-        with open(file_path, "w") as file:
-            json.dump(mapping, file, indent=2)
-
-    def read_mapping_from_file(self, file_path:str):
-        with open(file_path, "r") as f:
-            return json.loads(f.read())
-
-    def add_tags_to_vm(self, vm_external_id:str, tags:list):...
-
-    def _get_site_from_path(self, path:str):...
-
-    def create_gfw_rulebase_mapping(self):...
-
-    def get_local_groups(self):
-        return self.get_resource_by_type_and_queries(resource_type="group", queries=['parent_path:"/infra/domains/default"'])
-
-    def get_group_by_path(self, path:str):
-        return self.get_resource_by_type_and_queries(resource_type="group", queries=['path:"' + path + '"'])
-
-    def create_group_from_dict(self, group_data:dict):
-        group_id = group_data["id"]
-        url = self.base_url + "/policy/api/v1/infra/domains/default/groups/" + group_id
-
-        payload = group_data
-
-        try:
-            print(f"PUT {url}")
-            pprint(payload)
-            response = requests.patch(url=url, auth=self.cred, json=payload, verify=False)
-
-            if response.status_code == 200:
-                print(f"Successfully created group {group_id}")
-                return
-
-            try:
-                err = response.json().get("error_message", response.text)
-            except ValueError:  # not JSON
-                err = response.text
-            raise requests.exceptions.HTTPError(
-                f"{response.status_code} - {err}", response=response
-            )
-        except requests.exceptions.HTTPError as error_http:
-            print(f"ERROR! unable to create group, Code: {response.status_code} Message {str(error_http)}")
-            raise "ERROR! unable to create group"
-            
+    

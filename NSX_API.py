@@ -90,6 +90,9 @@ class NSX_API:
     def get_local_groups(self):
         return self.get_resource_by_type_and_queries(resource_type="group", queries=['parent_path:"/infra/domains/default"'])
 
+    def get_local_services(self):
+        return self.get_resource_by_type_and_queries(resource_type="service", queries=['parent_path:"/infra"'])
+        
     def get_group_by_path(self, path:str):
         return self.get_resource_by_type_and_queries(resource_type="group", queries=['path:"' + path + '"'])
 
@@ -214,13 +217,7 @@ class NSX_API:
                 print(f"Replenishing missing tags for VM named: {vm_name} !")
                 self.add_tags_to_vm(vm_external_id=vm_external_id, tags=original_tags)
 
-def main():
-    print("------------------------------------")
 
-if __name__ == "__main__":
-    main()
-
-    
     def create_service_from_dict(self, service_data:dict):
         service_id = service_data["id"]
         url = self.base_url + "/policy/api/v1/infra/services/" + service_id
@@ -246,6 +243,14 @@ if __name__ == "__main__":
         except requests.exceptions.HTTPError as error_http:
             print(f"ERROR! unable to create service, Code: {response.status_code} Message {str(error_http)}")
             raise "ERROR! unable to create service"
+
+def main():
+    print("------------------------------------")
+
+if __name__ == "__main__":
+    main()
+
+    
             
 
 

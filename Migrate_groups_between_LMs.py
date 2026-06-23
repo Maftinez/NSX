@@ -90,8 +90,8 @@ def main():
     
     arr_groups_to_revisit = create_groups(arr_groups_to_create=arr_groups_to_migrate, target_nsx=destination_nsx, target_nsx_existing_groups_map=existing_groups_map)
 
-    # Note, Incase of a failure to create the services, code will retry 50 times before timing out - to prevent infinite loop.
-    while len(arr_groups_to_revisit) > 0 && (retry_count < max_retry_count):
+    # Note, Incase of a failure to create the groups, code will retry 50 times before timing out - to prevent infinite loop.
+    while len(arr_groups_to_revisit) > 0 and (retry_count < max_retry_count):
         arr_groups_to_revisit = create_groups(arr_groups_to_create=arr_groups_to_revisit, target_nsx=destination_nsx, target_nsx_existing_groups_map=existing_groups_map)
         retry_count += 1
 

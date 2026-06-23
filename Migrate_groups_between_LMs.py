@@ -92,7 +92,14 @@ def main():
 
     # Note, Incase of a failure to create the groups, code will retry 50 times before timing out - to prevent infinite loop.
     while len(arr_groups_to_revisit) > 0 and (retry_count < max_retry_count):
+        previous_count = len(arr_groups_to_revisit)
         arr_groups_to_revisit = create_groups(arr_groups_to_create=arr_groups_to_revisit, target_nsx=destination_nsx, target_nsx_existing_groups_map=existing_groups_map)
+
+        # If no new groups were successfully created this round - terminate
+        if len(arr_groups_to_revisit) == previous_count:
+            print(f"Migration stuck due to unresolved dependencies or errors. Stopping.")
+            break
+            
         retry_count += 1
 
 if __name__ == "__main__":

@@ -1,6 +1,4 @@
 from NSX_API import *
-from OS_OPS import *
-from pprint import pprint
 import urllib3
 
 def create_groups(arr_groups_to_create: list, target_nsx: NSX_API, target_nsx_existing_groups_map: set):

@@ -2,10 +2,10 @@ from NSX_API import *
 import urllib3
 
 def create_groups(arr_groups_to_create: list, target_nsx: NSX_API, target_nsx_existing_groups_map: set):
+    arr_fields_to_remove = ["owner_id","remote_path","has_change_restrictions","status","effective_member_types"]
     arr_leftovers = []
     for group in arr_groups_to_create:
         group_path = group["path"]
-        #does_group_already_exist = (target_nsx.get_group_by_path(path=group["path"]) != None)
         does_group_already_exist = group_path in target_nsx_existing_groups_map
         
         if does_group_already_exist:
@@ -17,20 +17,9 @@ def create_groups(arr_groups_to_create: list, target_nsx: NSX_API, target_nsx_ex
         if system_owned or create_user == "system":
             continue
             
-        if "owner_id" in group:
-            group.pop("owner_id")
-            
-        if "remote_path" in group:
-            group.pop("remote_path")
-            
-        if "has_change_restrictions" in group:
-            group.pop("has_change_restrictions")
-            
-        if "status" in group:
-            group.pop("status")
-            
-        if "effective_member_types" in group:
-            group.pop("effective_member_types")
+        for field_to_remove in arr_fields_to_remove:
+            if field_to_remove in group:
+                group.pop(field_to_remove)
             
         if "expression" in group:
             expressions = group["expression"]

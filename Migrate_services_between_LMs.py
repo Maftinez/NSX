@@ -3,6 +3,7 @@ import urllib3
 
 def create_services(arr_services_to_create:list, target_nsx: NSX_API, target_nsx_existing_services_map:set):
     print(f"going over {len(arr_services_to_create)} services...")
+    arr_fields_to_remove = ["owner_id","remote_path","status"]
     arr_leftovers = []
     for service in arr_services_to_create:
         service_path = service["path"]
@@ -15,23 +16,18 @@ def create_services(arr_services_to_create:list, target_nsx: NSX_API, target_nsx
         create_user = service["_create_user"]
         
         if system_owned or create_user == "system":
-            continue
-            
-        if "owner_id" in service:
-            service.pop("owner_id")
+            continue            
+
+        for field_to_remove in arr_fields_to_remove:
+            if field_to_remove in service:
+                service.pop(field_to_remove)
             
         if "service_entries" in service:
             for entry in service["service_entries"]:
                 if "owner_id" in entry:
                     entry.pop("owner_id")
                 if "remote_path" in entry:
-                    entry.pop("remote_path")
-                    
-        if "remote_path" in service:
-            service.pop("remote_path")
-            
-        if "status" in service:
-            service.pop("status")
+                    entry.pop("remote_path")                    
             
         try:
             target_nsx.create_service_from_dict(service_data=service)

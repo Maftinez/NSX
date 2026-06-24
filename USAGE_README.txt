@@ -10,7 +10,7 @@ I have more functions and methods in my private environment if required, will be
 
 
 -------------------------------------------------------------------------------
-Migrate_Tags_Script
+Migrate_tags_between_LMs
 -------------------------------------------------------------------------------
 This script creates a mapping of all VM names and their assigned NSX tags.
 The script saves the mapping in a given file path.

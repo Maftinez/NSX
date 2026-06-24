@@ -1,4 +1,5 @@
 Scripts written by Martin Gutman.
+Suitable for python version 3.7
 
 -------------------------------------------------------------------------------
 NSX_API class

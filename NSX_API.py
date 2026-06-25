@@ -250,3 +250,38 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+    def create_dfw_policy(self, security_policy_id:str, rules:list=None): ...
+
+    def create_dfw_policy_from_dict(self, policy_object:dict):
+        policy_id = policy_object["id"]
+        url = self.base_url + "/policy/api/v1/infra/domains/default/security-policies/" + policy_id
+        
+        payload = policy_object
+
+        try:
+            print(f"PATCH {url}")
+            pprint(payload)
+            response = requests.patch(url=url, auth=self.cred, json=payload, verify=False)
+
+            if response.status_code == 200:
+                print(f"Successfully created policy {policy_id}")
+                return
+            
+            try:
+                err = response.json().get("error_message", response.text)
+            except ValueError:  # not JSON
+                err = response.text
+            raise requests.exceptions.HTTPError(
+                f"{response.status_code} - {err}", response=response
+            )
+        except requests.exceptions.HTTPError as error_http:
+            print(f"ERROR! unable to create policy, Code: {response.status_code} Message {str(error_http)}")
+            raise "ERROR! unable to create policy"
+
+def main():
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    

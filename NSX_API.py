@@ -101,7 +101,7 @@ class NSX_API:
         return self.get_resource_by_type_and_queries(resource_type="rule", queries=['path:"' + policy_path + '"'])
 
     def get_local_dfw_policies_none_vpc(self):
-        return self.get_resource_by_type_and_queries(resource_type="securitypolicy", queries=['path:"/infra/domains/default"'])
+        return self.get_resource_by_type_and_queries(resource_type="securitypolicy", queries=['parent_path:"/infra/domains/default"'])
 
     def create_group_from_dict(self, group_data:dict):
         group_id = group_data["id"]
